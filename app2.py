@@ -10,7 +10,7 @@ def load_data(file):
 
 st.set_page_config(layout="wide", page_title="Phân tích Shopee", page_icon="📊")
 st.title("📊 Phân tích & Báo cáo Shopee")
-st.markdown("<style>body { background-color: #f0f8ff; }</style>", unsafe_allow_html=True)
+st.markdown("<style>body { background-color: #e6f7ff; }</style>", unsafe_allow_html=True)
 
 uploaded_file = st.file_uploader("📂 Tải lên file Excel", type=["xlsx"])
 
@@ -37,19 +37,22 @@ if uploaded_file:
     
     # Xác định cột doanh thu & chi phí
     revenue_column = next((col for col in df_filtered.columns if "Doanh thu" in col), None)
-    cost_column = next((col for col in df_filtered.columns if "Chi phí Kinh Doanh" in col), None)
-    fee_column = next((col for col in df_filtered.columns if "Phí sàn" in col), None)
+    cost_columns = [col for col in df_filtered.columns if any(x in col for x in ["Chi phí Kinh Doanh", "Phí sàn", "Giá nhập hàng", "Chi phí quảng cáo"])]
+    
+    # Chuyển đổi dữ liệu sang dạng số
+    if revenue_column:
+        df_filtered[revenue_column] = pd.to_numeric(df_filtered[revenue_column], errors="coerce")
+    for col in cost_columns:
+        df_filtered[col] = pd.to_numeric(df_filtered[col], errors="coerce")
     
     # Tổng hợp doanh thu & chi phí
     st.write("### 📈 Tổng hợp Doanh thu & Chi phí")
-    total_revenue = df_filtered[revenue_column].sum() if revenue_column else 0
-    total_cost = df_filtered[cost_column].sum() if cost_column else 0
-    total_fee = df_filtered[fee_column].sum() if fee_column else 0
+    total_revenue = df_filtered[revenue_column].sum() if revenue_column else "Dữ liệu thiếu"
+    total_cost = sum(df_filtered[col].sum() for col in cost_columns) if cost_columns else "Dữ liệu thiếu"
     
-    col1, col2, col3 = st.columns(3)
-    col1.metric(label="💰 Tổng Doanh thu", value=f"{total_revenue:,.0f} VNĐ")
-    col2.metric(label="📉 Tổng Chi phí Kinh Doanh", value=f"{total_cost:,.0f} VNĐ")
-    col3.metric(label="💸 Tổng Phí sàn", value=f"{total_fee:,.0f} VNĐ")
+    col1, col2 = st.columns(2)
+    col1.metric(label="💰 Tổng Doanh thu", value=f"{total_revenue:,.0f} VNĐ" if isinstance(total_revenue, (int, float)) else total_revenue)
+    col2.metric(label="📉 Tổng Chi phí Kinh Doanh", value=f"{total_cost:,.0f} VNĐ" if isinstance(total_cost, (int, float)) else total_cost)
     
     # Phân tích theo sản phẩm
     st.write("### 📊 Phân tích theo sản phẩm")
@@ -57,19 +60,6 @@ if uploaded_file:
         product_sales = df_filtered.groupby("Tên sản phẩm")[revenue_column].sum().reset_index()
         fig = px.bar(product_sales, x="Tên sản phẩm", y=revenue_column, title="📊 Doanh thu theo sản phẩm", text_auto=True, color=revenue_column, color_continuous_scale="blues")
         st.plotly_chart(fig, use_container_width=True)
-    
-    # Xử lý lỗi tên cột phí vận chuyển
-    shipping_column = next((col for col in df_filtered.columns if "Phí vận chuyển" in col), None)
-    if shipping_column:
-        df_filtered[shipping_column] = pd.to_numeric(df_filtered[shipping_column], errors="coerce")
-    
-    # Biểu đồ chi phí vận chuyển
-    st.write("### 🚚 Tỷ lệ Chi phí Vận Chuyển")
-    if shipping_column and df_filtered[shipping_column].notnull().sum() > 0:
-        cost_chart = px.pie(df_filtered, values=shipping_column, names="Tên sản phẩm", title="🚚 Tỷ lệ chi phí vận chuyển", color_discrete_sequence=px.colors.sequential.Blues)
-        st.plotly_chart(cost_chart, use_container_width=True)
-    else:
-        st.write("Không có dữ liệu vận chuyển hợp lệ.")
     
     # Xuất báo cáo
     st.write("### 📤 Xuất báo cáo")
