@@ -6,6 +6,26 @@ import plotly.express as px
 def load_data(file):
     df = pd.read_excel(file)
     return df
+# Đảm bảo cột 'Thời gian tạo đơn hàng' tồn tại và không rỗng
+if "Thời gian tạo đơn hàng" in df.columns and not df["Thời gian tạo đơn hàng"].isnull().all():
+    # Chuyển đổi sang datetime
+    df["Thời gian tạo đơn hàng"] = pd.to_datetime(df["Thời gian tạo đơn hàng"], errors="coerce")
+    
+    # Loại bỏ giá trị NaT (nếu có)
+    df = df.dropna(subset=["Thời gian tạo đơn hàng"])
+
+    # Kiểm tra lại nếu dữ liệu vẫn còn
+    if not df.empty:
+        selected_time = st.sidebar.date_input(
+            "Chọn thời gian tạo đơn",
+            [df["Thời gian tạo đơn hàng"].min().date(), df["Thời gian tạo đơn hàng"].max().date()]
+        )
+    else:
+        st.sidebar.warning("Không có dữ liệu hợp lệ trong cột 'Thời gian tạo đơn hàng'.")
+        selected_time = []
+else:
+    st.sidebar.error("Cột 'Thời gian tạo đơn hàng' không tồn tại hoặc toàn bộ dữ liệu bị lỗi.")
+    selected_time = []
 
 st.set_page_config(layout="wide")
 st.title("Phân tích & Báo cáo Shopee")
