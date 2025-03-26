@@ -10,7 +10,7 @@ def load_data(file):
 
 st.set_page_config(layout="wide", page_title="Phân tích Shopee", page_icon="📊")
 st.title("📊 Phân tích & Báo cáo Shopee")
-st.markdown("<style>body { background-color: #e6f7ff; }</style>", unsafe_allow_html=True)
+st.markdown("<style>body { background-color: #e0f7fa; }</style>", unsafe_allow_html=True)
 
 uploaded_file = st.file_uploader("📂 Tải lên file Excel", type=["xlsx"])
 
