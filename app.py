@@ -2,48 +2,54 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 
-# Cấu hình giao diện
-st.set_page_config(page_title="Phân Tích Đơn Hàng", layout="wide")
-st.title("📊 Phân Tích Dữ Liệu Đơn Hàng Shopee")
+# Hàm đọc file Excel
+def load_data(file):
+    try:
+        df = pd.read_excel(file, engine='openpyxl')
+        st.write("Dữ liệu đã tải lên thành công!")
+        return df
+    except Exception as e:
+        st.error(f"Lỗi khi đọc file: {e}")
+        return None
 
-# Tải file lên
-uploaded_file = st.file_uploader("📂 Tải lên tệp Excel chứa dữ liệu đơn hàng", type=["xlsx"])
+# Hàm xử lý dữ liệu
+def process_data(df):
+    required_columns = ["Thời gian tạo đơn hàng", "Tổng số tiền được người bán trợ giá", "Mã giảm giá của Shop", "Phí cố định", "Phí Dịch Vụ", "Phí thanh toán", "Giá gốc"]
+    missing_columns = [col for col in required_columns if col not in df.columns]
+    
+    if missing_columns:
+        st.error(f"Thiếu các cột sau trong file: {', '.join(missing_columns)}")
+        return None
+    
+    # Chuyển đổi cột ngày tháng
+    df["Thời gian tạo đơn hàng"] = pd.to_datetime(df["Thời gian tạo đơn hàng"], errors='coerce')
+    
+    # Tính toán doanh thu và chi phí
+    df["Chi phí kinh doanh"] = df["Tổng số tiền được người bán trợ giá"] + df["Mã giảm giá của Shop"]
+    df["Phí sàn"] = df["Phí cố định"] + df["Phí Dịch Vụ"] + df["Phí thanh toán"]
+    df["Tổng giá bán sản phẩm"] = df["Giá gốc"] - df["Tổng số tiền được người bán trợ giá"]
+    
+    return df
 
-if uploaded_file:
-    df = pd.read_excel(uploaded_file)
-    st.success("✅ Tệp đã tải lên thành công!")
+# Hàm hiển thị báo cáo
+def display_report(df):
+    st.write("## Báo cáo Doanh thu & Chi phí")
+    st.write(df.head())
     
-    # Chọn khoảng thời gian để phân tích
-    st.sidebar.header("📅 Chọn thời gian so sánh")
-    date_col = "Thời gian tạo đơn hàng"
-    df[date_col] = pd.to_datetime(df[date_col])
-    min_date, max_date = df[date_col].min(), df[date_col].max()
-    date_range = st.sidebar.slider("Chọn khoảng thời gian", min_value=min_date, max_value=max_date, value=(min_date, max_date))
-    df_filtered = df[(df[date_col] >= date_range[0]) & (df[date_col] <= date_range[1])]
-    
-    # Tính các chỉ số
-    doanh_thu = df_filtered["Tổng giá bán (sản phẩm)"].sum()
-    so_luong_ban = df_filtered["Số lượng bán"].sum()
-    chi_phi_kinh_doanh = df_filtered["Tổng số tiền được người bán trợ giá"].sum() + df_filtered["Mã giảm giá của Shop"].sum()
-    phi_san = df_filtered["Phí cố định"].sum() + df_filtered["Phí Dịch Vụ"].sum() + df_filtered["Phí thanh toán"].sum()
-    doanh_thu_thuc_nhan = doanh_thu - chi_phi_kinh_doanh - phi_san
-    
-    # Hiển thị Dashboard
-    col1, col2, col3 = st.columns(3)
-    col1.metric("📈 Doanh thu", f"{doanh_thu:,.0f} VND")
-    col2.metric("📦 Số lượng bán", f"{so_luong_ban:,}")
-    col3.metric("💰 Chi phí Kinh Doanh", f"{chi_phi_kinh_doanh:,.0f} VND")
-    
-    # Biểu đồ tròn chi phí
+    # Vẽ biểu đồ tròn
     fig, ax = plt.subplots()
-    labels = ["Chi phí Kinh Doanh", "Phí sàn", "Doanh thu thực nhận"]
-    sizes = [chi_phi_kinh_doanh, phi_san, doanh_thu_thuc_nhan]
-    ax.pie(sizes, labels=labels, autopct="%1.1f%%", colors=["#FF9999", "#66B3FF", "#99FF99"])
-    ax.set_title("Tỷ lệ Chi phí & Doanh thu")
+    labels = ["Chi phí Kinh Doanh", "Phí Sàn"]
+    values = [df["Chi phí kinh doanh"].sum(), df["Phí sàn"].sum()]
+    ax.pie(values, labels=labels, autopct='%1.1f%%', startangle=90, colors=["#66b3ff", "#ff9999"])
     st.pyplot(fig)
-    
-    # Xuất báo cáo
-    if st.button("📤 Xuất báo cáo Excel"):
-        output_file = "report.xlsx"
-        df_filtered.to_excel(output_file, index=False)
-        st.download_button(label="📥 Tải xuống báo cáo", data=open(output_file, "rb").read(), file_name="Phan_Tich_Don_Hang.xlsx")
+
+# Giao diện Streamlit
+st.title("Phân tích dữ liệu Shopee")
+
+uploaded_file = st.file_uploader("Tải file Excel lên", type=["xlsx"])
+if uploaded_file:
+    df = load_data(uploaded_file)
+    if df is not None:
+        df = process_data(df)
+        if df is not None:
+            display_report(df)
