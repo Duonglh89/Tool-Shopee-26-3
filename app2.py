@@ -6,6 +6,27 @@ import plotly.express as px
 def load_data(file):
     df = pd.read_excel(file)
     return df
+if uploaded_file:
+    df = load_data(uploaded_file)
+    
+    # Hiển thị danh sách cột để kiểm tra
+    st.write("### Các cột trong file:", df.columns.tolist())
+    
+    # Kiểm tra cột 'Thời gian tạo đơn hàng' có tồn tại không
+    if "Thời gian tạo đơn hàng" in df.columns:
+        df["Thời gian tạo đơn hàng"] = pd.to_datetime(df["Thời gian tạo đơn hàng"], errors="coerce")
+        
+        # Kiểm tra có giá trị hợp lệ không
+        if not df["Thời gian tạo đơn hàng"].isnull().all():
+            selected_time = st.sidebar.date_input(
+                "Chọn thời gian tạo đơn",
+                [df["Thời gian tạo đơn hàng"].min().date(), df["Thời gian tạo đơn hàng"].max().date()]
+            )
+        else:
+            st.sidebar.warning("Cột 'Thời gian tạo đơn hàng' không có dữ liệu hợp lệ.")
+    else:
+        st.sidebar.error("Cột 'Thời gian tạo đơn hàng' không tồn tại trong file Excel.")
+
 # Đảm bảo cột 'Thời gian tạo đơn hàng' tồn tại và không rỗng
 if "Thời gian tạo đơn hàng" in df.columns and not df["Thời gian tạo đơn hàng"].isnull().all():
     # Chuyển đổi sang datetime
