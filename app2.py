@@ -8,8 +8,9 @@ def load_data(file):
     df.columns = df.columns.str.strip().str.replace("\\n", " ").str.replace("\\s+", " ", regex=True)
     return df
 
-st.set_page_config(layout="wide")
+st.set_page_config(layout="wide", page_title="Phân tích Shopee", page_icon="📊")
 st.title("📊 Phân tích & Báo cáo Shopee")
+st.markdown("<style>body { background-color: #f0f8ff; }</style>", unsafe_allow_html=True)
 
 uploaded_file = st.file_uploader("📂 Tải lên file Excel", type=["xlsx"])
 
@@ -25,8 +26,8 @@ if uploaded_file:
     
     # Sidebar bộ lọc
     st.sidebar.header("🔎 Bộ lọc dữ liệu")
-    selected_status = st.sidebar.multiselect("📌 Trạng thái đơn hàng", sorted(df["Trạng Thái Đơn Hàng"].dropna().unique()), default=sorted(df["Trạng Thái Đơn Hàng"].dropna().unique()))
-    selected_products = st.sidebar.multiselect("📦 Tên sản phẩm", sorted(df["Tên sản phẩm"].dropna().unique()), default=sorted(df["Tên sản phẩm"].dropna().unique()))
+    selected_status = st.sidebar.multiselect("📌 Trạng thái đơn hàng", sorted(df["Trạng Thái Đơn Hàng"].dropna().unique()))
+    selected_products = st.sidebar.multiselect("📦 Tên sản phẩm", sorted(df["Tên sản phẩm"].dropna().unique()))
     
     if time_column:
         selected_time = st.sidebar.date_input("📅 Chọn thời gian tạo đơn", [df[time_column].min(), df[time_column].max()])
@@ -34,14 +35,16 @@ if uploaded_file:
     else:
         df_filtered = df[(df["Trạng Thái Đơn Hàng"].isin(selected_status)) & (df["Tên sản phẩm"].isin(selected_products))]
     
-    # Xác định cột doanh thu
+    # Xác định cột doanh thu & chi phí
     revenue_column = next((col for col in df_filtered.columns if "Doanh thu" in col), None)
+    cost_column = next((col for col in df_filtered.columns if "Chi phí Kinh Doanh" in col), None)
+    fee_column = next((col for col in df_filtered.columns if "Phí sàn" in col), None)
     
     # Tổng hợp doanh thu & chi phí
     st.write("### 📈 Tổng hợp Doanh thu & Chi phí")
     total_revenue = df_filtered[revenue_column].sum() if revenue_column else 0
-    total_cost = df_filtered["Chi phí Kinh Doanh"].sum() if "Chi phí Kinh Doanh" in df_filtered.columns else 0
-    total_fee = df_filtered["Phí sàn"].sum() if "Phí sàn" in df_filtered.columns else 0
+    total_cost = df_filtered[cost_column].sum() if cost_column else 0
+    total_fee = df_filtered[fee_column].sum() if fee_column else 0
     
     col1, col2, col3 = st.columns(3)
     col1.metric(label="💰 Tổng Doanh thu", value=f"{total_revenue:,.0f} VNĐ")
