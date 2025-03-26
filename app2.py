@@ -5,7 +5,7 @@ import plotly.express as px
 # Load file Excel
 def load_data(file):
     df = pd.read_excel(file)
-    df.rename(columns=lambda x: x.strip(), inplace=True)  # Xóa khoảng trắng ở tên cột
+    df.columns = df.columns.str.strip().str.replace("\\n", " ").str.replace("\\s+", " ", regex=True)
     return df
 
 st.set_page_config(layout="wide")
@@ -19,14 +19,24 @@ if uploaded_file:
     st.dataframe(df)
     
     # Kiểm tra và xử lý cột thời gian
-    if "Thời gian tạo đơn hàng" in df.columns and not df["Thời gian tạo đơn hàng"].isnull().all():
-        df["Thời gian tạo đơn hàng"] = pd.to_datetime(df["Thời gian tạo đơn hàng"], errors="coerce")
+    time_column = None
+    for col in df.columns:
+        if "Thời gian tạo đơn" in col:
+            time_column = col
+            break
+    
+    if time_column:
+        df[time_column] = pd.to_datetime(df[time_column], errors="coerce")
     
     # Bộ lọc thông minh
     st.sidebar.header("Bộ lọc dữ liệu")
     selected_status = st.sidebar.multiselect("Trạng thái đơn hàng", df["Trạng Thái Đơn Hàng"].unique(), default=df["Trạng Thái Đơn Hàng"].unique())
-    selected_time = st.sidebar.date_input("Chọn thời gian tạo đơn", [df["Thời gian tạo đơn hàng"].min(), df["Thời gian tạo đơn hàng"].max()])
-    df_filtered = df[(df["Trạng Thái Đơn Hàng"].isin(selected_status)) & (df["Thời gian tạo đơn hàng"].between(pd.Timestamp(selected_time[0]), pd.Timestamp(selected_time[1])))]
+    
+    if time_column:
+        selected_time = st.sidebar.date_input("Chọn thời gian tạo đơn", [df[time_column].min(), df[time_column].max()])
+        df_filtered = df[(df["Trạng Thái Đơn Hàng"].isin(selected_status)) & (df[time_column].between(pd.Timestamp(selected_time[0]), pd.Timestamp(selected_time[1])))]
+    else:
+        df_filtered = df[df["Trạng Thái Đơn Hàng"].isin(selected_status)]
     
     # Tổng hợp doanh thu & chi phí
     st.write("### Tổng hợp Doanh thu & Chi phí")
@@ -44,13 +54,19 @@ if uploaded_file:
     st.plotly_chart(fig)
     
     # Xử lý lỗi tên cột phí vận chuyển
-    df_filtered.rename(columns={"Phí vận chuyển (dự kiến)": "Phí vận chuyển"}, inplace=True)
-    df_filtered["Phí vận chuyển"] = pd.to_numeric(df_filtered["Phí vận chuyển"], errors="coerce")
+    shipping_column = None
+    for col in df_filtered.columns:
+        if "Phí vận chuyển" in col:
+            shipping_column = col
+            break
+    
+    if shipping_column:
+        df_filtered[shipping_column] = pd.to_numeric(df_filtered[shipping_column], errors="coerce")
     
     # Biểu đồ chi phí vận chuyển
     st.write("### Tỷ lệ Chi phí Vận Chuyển")
-    if "Phí vận chuyển" in df_filtered.columns and df_filtered["Phí vận chuyển"].notnull().sum() > 0:
-        cost_chart = px.pie(df_filtered, values="Phí vận chuyển", names="Tên sản phẩm", title="Tỷ lệ chi phí vận chuyển")
+    if shipping_column and df_filtered[shipping_column].notnull().sum() > 0:
+        cost_chart = px.pie(df_filtered, values=shipping_column, names="Tên sản phẩm", title="Tỷ lệ chi phí vận chuyển")
         st.plotly_chart(cost_chart)
     else:
         st.write("Không có dữ liệu vận chuyển hợp lệ.")
