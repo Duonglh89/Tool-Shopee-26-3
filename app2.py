@@ -25,13 +25,14 @@ if uploaded_file:
     
     # Sidebar bộ lọc
     st.sidebar.header("🔎 Bộ lọc dữ liệu")
-    selected_status = st.sidebar.multiselect("📌 Trạng thái đơn hàng", df["Trạng Thái Đơn Hàng"].dropna().unique(), default=df["Trạng Thái Đơn Hàng"].dropna().unique())
+    selected_status = st.sidebar.multiselect("📌 Trạng thái đơn hàng", sorted(df["Trạng Thái Đơn Hàng"].dropna().unique()), default=sorted(df["Trạng Thái Đơn Hàng"].dropna().unique()))
+    selected_products = st.sidebar.multiselect("📦 Tên sản phẩm", sorted(df["Tên sản phẩm"].dropna().unique()), default=sorted(df["Tên sản phẩm"].dropna().unique()))
     
     if time_column:
         selected_time = st.sidebar.date_input("📅 Chọn thời gian tạo đơn", [df[time_column].min(), df[time_column].max()])
-        df_filtered = df[(df["Trạng Thái Đơn Hàng"].isin(selected_status)) & (df[time_column].between(pd.Timestamp(selected_time[0]), pd.Timestamp(selected_time[1])))]
+        df_filtered = df[(df["Trạng Thái Đơn Hàng"].isin(selected_status)) & (df["Tên sản phẩm"].isin(selected_products)) & (df[time_column].between(pd.Timestamp(selected_time[0]), pd.Timestamp(selected_time[1])))]
     else:
-        df_filtered = df[df["Trạng Thái Đơn Hàng"].isin(selected_status)]
+        df_filtered = df[(df["Trạng Thái Đơn Hàng"].isin(selected_status)) & (df["Tên sản phẩm"].isin(selected_products))]
     
     # Xác định cột doanh thu
     revenue_column = next((col for col in df_filtered.columns if "Doanh thu" in col), None)
@@ -51,7 +52,7 @@ if uploaded_file:
     st.write("### 📊 Phân tích theo sản phẩm")
     if revenue_column:
         product_sales = df_filtered.groupby("Tên sản phẩm")[revenue_column].sum().reset_index()
-        fig = px.bar(product_sales, x="Tên sản phẩm", y=revenue_column, title="📊 Doanh thu theo sản phẩm", text_auto=True, color=revenue_column)
+        fig = px.bar(product_sales, x="Tên sản phẩm", y=revenue_column, title="📊 Doanh thu theo sản phẩm", text_auto=True, color=revenue_column, color_continuous_scale="blues")
         st.plotly_chart(fig, use_container_width=True)
     
     # Xử lý lỗi tên cột phí vận chuyển
@@ -62,7 +63,7 @@ if uploaded_file:
     # Biểu đồ chi phí vận chuyển
     st.write("### 🚚 Tỷ lệ Chi phí Vận Chuyển")
     if shipping_column and df_filtered[shipping_column].notnull().sum() > 0:
-        cost_chart = px.pie(df_filtered, values=shipping_column, names="Tên sản phẩm", title="🚚 Tỷ lệ chi phí vận chuyển")
+        cost_chart = px.pie(df_filtered, values=shipping_column, names="Tên sản phẩm", title="🚚 Tỷ lệ chi phí vận chuyển", color_discrete_sequence=px.colors.sequential.Blues)
         st.plotly_chart(cost_chart, use_container_width=True)
     else:
         st.write("Không có dữ liệu vận chuyển hợp lệ.")
